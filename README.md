@@ -18,7 +18,8 @@ This monorepo is a living portfolio of reusable Infrastructure as Code focused o
 ├── modules/          # Focused, reusable Terraform modules
 ├── products/         # Composed, opinionated solutions ready for use
 ├── examples/         # Minimal working examples
-├── docs/             # Architecture notes, ADRs, design decisions
+├── policy/           # Conftest policies for Terraform
+├── docs/             # Architecture notes, including the security pipeline
 └── .github/          # CI workflows for linting, validation, and tests
 ```
 
@@ -39,13 +40,17 @@ Coming soon — higher-level compositions that solve end-to-end pain points (e.g
 
 We use a layered approach:
 
-1. **Static** — `terraform fmt`, `validate`, tflint, Checkov/tfsec
+1. **Static** — `terraform fmt`, `validate`, plus the misconfiguration and policy gates in the [security pipeline](docs/security-pipeline.md)
 2. **Configuration tests** — Native Terraform Test framework (`.tftest.hcl`) with plan assertions
 3. **Integration** — LocalStack for fast local/CI feedback + selective real-AWS ephemeral tests where needed
 
-Every module should ship with tests from day one.
+Every module should ship with tests from day one. CI runs `fmt` and `validate` in every module and example directory, and runs Terraform Test when `.tftest.hcl` files are present. LocalStack and real-AWS applies remain future work.
 
 ## Security gates
+
+What each gate checks, what it blocks, and how to run it locally is documented in [Security pipeline](docs/security-pipeline.md).
+
+Terraform `fmt`, `init -backend=false`, `validate`, and `test` (when `.tftest.hcl` files exist) run for every directory under `modules/` and `examples/` that contains `.tf` files. CI discovers those directories, so a new module or example does not require a workflow edit.
 
 CI scans the Terraform under `modules/` and `examples/` with [Trivy](https://github.com/aquasecurity/trivy) config mode. The job fails on HIGH or CRITICAL misconfigurations and uploads a SARIF report to the GitHub Security tab. Suppress a finding only with a resource-scoped `#trivy:ignore:<id>` comment and a one-line justification immediately above it.
 CI also evaluates the Rego policies in [`policy/terraform`](policy/terraform) with [Conftest](https://www.conftest.dev/) (HCL2 parser) and fails on violations; see [policy/README.md](policy/README.md).
