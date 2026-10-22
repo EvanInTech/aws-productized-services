@@ -10,9 +10,9 @@ permissions:
   contents: read
 
 jobs:
-  # A directory under modules/ or examples/ is a matrix entry when a .tf file
-  # sits directly in that directory. A new module or example is checked without
-  # editing this file.
+  # A directory under modules/, examples/, or products/ is a matrix entry
+  # when a .tf file sits directly in that directory. products/ has none today.
+  # A new module, example, or product is checked without editing this file.
   discover:
     name: Discover Terraform directories
     runs-on: ubuntu-latest
@@ -37,11 +37,11 @@ jobs:
               continue
             fi
             rows+=("$(jq -nc --arg directory "$dir" '{directory:$directory}')")
-          done < <(find modules examples -mindepth 1 -type d \
+          done < <(find modules examples products -mindepth 1 -type d \
             -not -path '*/.terraform' -not -path '*/.terraform/*' \
             -print0 | sort -z)
           if [ "${#rows[@]}" -eq 0 ]; then
-            echo "No Terraform directories found under modules/ or examples/."
+            echo "No Terraform directories found under modules/, examples/, or products/."
             exit 1
           fi
           matrix="$(printf '%s\n' "${rows[@]}" | jq -sc '{include: .}')"
@@ -97,8 +97,9 @@ jobs:
           fi
           terraform test
 
-  # Terraform in this repo lives under modules/ and examples/.
-  # security-events: write is only for the SARIF upload on this job.
+  # Terraform in this repo lives under modules/, examples/, and products/.
+  # products/ currently has no .tf files. security-events: write is only
+  # for the SARIF upload on this job.
   iac-security:
     name: IaC Security Scan
     runs-on: ubuntu-latest
@@ -119,7 +120,7 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: "1"
           format: table
-          skip-dirs: .git,docs,products,.github
+          skip-dirs: .git,docs,.github
           cache: "false"
           version: v0.70.0
 
@@ -135,7 +136,7 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           limit-severities-for-sarif: true
-          skip-dirs: .git,docs,products,.github
+          skip-dirs: .git,docs,.github
           cache: "false"
           version: v0.70.0
 
@@ -182,9 +183,9 @@ jobs:
           files=()
           while IFS= read -r -d '' file; do
             files+=("$file")
-          done < <(find modules examples -type f -name '*.tf' -print0 | sort -z)
+          done < <(find modules examples products -type f -name '*.tf' -print0 | sort -z)
           if [ "${#files[@]}" -eq 0 ]; then
-            echo "No Terraform files found under modules/ or examples/."
+            echo "No Terraform files found under modules/, examples/, or products/."
             exit 1
           fi
           conftest test --parser hcl2 --no-color --policy policy/terraform "${files[@]}"

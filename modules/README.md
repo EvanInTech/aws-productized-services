@@ -11,7 +11,7 @@ Focused, reusable Terraform modules. Each module is designed to be:
 
 | Module | Description |
 |--------|-------------|
-| [secure-s3-bucket](./secure-s3-bucket) | Production-oriented S3 bucket (encryption, versioning, public access block, optional access logging) |
+| [secure-s3-bucket](./secure-s3-bucket) | Production-oriented S3 bucket (encryption, versioning, public access block). Access logging is not part of this module; it is on the repository roadmap. |
 
 ## Module Guidelines
 

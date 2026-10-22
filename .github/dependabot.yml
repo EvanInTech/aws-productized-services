@@ -6,10 +6,13 @@ updates:
       interval: "weekly"
       day: "monday"
 
+  # * is one path segment, so each new modules/<name> or examples/<name>
+  # is covered without editing this file. It does not match tests/ underneath
+  # a module, and it does not match products/ (no Terraform there yet).
   - package-ecosystem: "terraform"
     directories:
-      - "/modules/secure-s3-bucket"
-      - "/examples/secure-s3-bucket"
+      - "/modules/*"
+      - "/examples/*"
     schedule:
       interval: "weekly"
       day: "monday"

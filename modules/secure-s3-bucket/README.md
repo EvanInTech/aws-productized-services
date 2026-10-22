@@ -8,6 +8,17 @@ A production-oriented S3 bucket module with secure defaults:
 - BucketOwnerEnforced ownership controls
 - Common tags applied
 
+Server access logging is a roadmap item. This module has no logging variable or logging resource.
+
+## Requirements
+
+| Name | Version |
+|------|---------|
+| terraform | >= 1.7.0 |
+| aws | >= 5.0 |
+
+`tests/basic.tftest.hcl` uses `mock_provider`, which Terraform added in 1.7.0. CI installs Terraform 1.9.0.
+
 ## Usage
 
 ```hcl
@@ -50,4 +61,4 @@ terraform init
 terraform test
 ```
 
-The included tests use `command = plan` so they run quickly without creating real resources.
+The included tests use `command = plan` and `mock_provider "aws"` so they run without AWS credentials or real resources. Terraform 1.7.0 or newer is required.
