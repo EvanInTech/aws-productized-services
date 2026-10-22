@@ -4,7 +4,7 @@ A production-oriented S3 bucket module with secure defaults:
 
 - Public access blocked
 - Versioning enabled by default
-- Server-side encryption (SSE-S3 / AES256) enabled by default
+- Server-side encryption (SSE-S3 / AES256) enabled by default. A customer-managed KMS key is left to the caller (see the inline Trivy exception on the encryption resource).
 - BucketOwnerEnforced ownership controls
 - Common tags applied
 
