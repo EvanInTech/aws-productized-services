@@ -10,13 +10,58 @@ permissions:
   contents: read
 
 jobs:
-  terraform:
-    name: Terraform Checks
+  # A directory under modules/ or examples/ is a matrix entry when a .tf file
+  # sits directly in that directory. A new module or example is checked without
+  # editing this file.
+  discover:
+    name: Discover Terraform directories
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
 
-    defaults:
-      run:
-        working-directory: modules/secure-s3-bucket
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Build the Terraform matrix
+        id: matrix
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          rows=()
+          while IFS= read -r -d '' dir; do
+            tf=( "$dir"/*.tf )
+            if [ "${#tf[@]}" -eq 0 ]; then
+              continue
+            fi
+            rows+=("$(jq -nc --arg directory "$dir" '{directory:$directory}')")
+          done < <(find modules examples -mindepth 1 -type d \
+            -not -path '*/.terraform' -not -path '*/.terraform/*' \
+            -print0 | sort -z)
+          if [ "${#rows[@]}" -eq 0 ]; then
+            echo "No Terraform directories found under modules/ or examples/."
+            exit 1
+          fi
+          matrix="$(printf '%s\n' "${rows[@]}" | jq -sc '{include: .}')"
+          {
+            echo "matrix<<EOF"
+            echo "${matrix}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+          echo "Discovered Terraform directories:"
+          echo "${matrix}" | jq -r '.include[].directory'
+
+  terraform:
+    name: Terraform Checks (${{ matrix.directory }})
+    needs: discover
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
 
     steps:
       - name: Checkout
@@ -29,16 +74,28 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform Format
+        working-directory: ${{ matrix.directory }}
         run: terraform fmt -check -recursive
 
       - name: Terraform Init
+        working-directory: ${{ matrix.directory }}
         run: terraform init -backend=false
 
       - name: Terraform Validate
+        working-directory: ${{ matrix.directory }}
         run: terraform validate
 
       - name: Terraform Test
-        run: terraform test
+        working-directory: ${{ matrix.directory }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          tests=(./*.tftest.hcl ./tests/*.tftest.hcl)
+          if [ "${#tests[@]}" -eq 0 ]; then
+            echo "No .tftest.hcl files; skipping terraform test."
+            exit 0
+          fi
+          terraform test
 
   # Terraform in this repo lives under modules/ and examples/.
   # security-events: write is only for the SARIF upload on this job.
