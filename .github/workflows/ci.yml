@@ -88,3 +88,72 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
           category: trivy-iac
+
+  # Rego over Terraform HCL. Checkout needs contents: read; Conftest does not
+  # call AWS and does not upload anything, so this job adds no token scopes.
+  policy:
+    name: Policy as Code
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Conftest
+        run: |
+          set -euo pipefail
+          version="0.71.1"
+          checksum="c3f6b2a753bd56e377a1e51a95ae3e057f926f2e9139f7d5b5dfbbaf810f7985"
+          if [ "$(uname -m)" != "x86_64" ]; then
+            echo "Pinned Conftest ${version} checksum is for linux/amd64."
+            exit 1
+          fi
+          archive="conftest_${version}_Linux_x86_64.tar.gz"
+          workdir="${RUNNER_TEMP:-/tmp}/conftest"
+          mkdir -p "${workdir}/bin"
+          curl -fsSL -o "${workdir}/${archive}" "https://github.com/open-policy-agent/conftest/releases/download/v${version}/${archive}"
+          echo "${checksum}  ${workdir}/${archive}" | sha256sum -c -
+          tar -xzf "${workdir}/${archive}" -C "${workdir}/bin" conftest
+          echo "${workdir}/bin" >> "${GITHUB_PATH}"
+          "${workdir}/bin/conftest" --version
+
+      - name: Evaluate policies against modules and examples
+        run: |
+          set -euo pipefail
+          files=()
+          while IFS= read -r -d '' file; do
+            files+=("$file")
+          done < <(find modules examples -type f -name '*.tf' -print0 | sort -z)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No Terraform files found under modules/ or examples/."
+            exit 1
+          fi
+          conftest test --parser hcl2 --no-color --policy policy/terraform "${files[@]}"
+
+      - name: Unit-test the policies
+        run: conftest verify --policy policy/terraform --show-builtin-errors
+
+      - name: Insecure fixture must be rejected
+        run: |
+          set -euo pipefail
+          output="${RUNNER_TEMP:-/tmp}/conftest-insecure.json"
+          set +e
+          conftest test --parser hcl2 --no-color --policy policy/terraform --output json policy/tests/insecure_s3_bucket.tf >"${output}"
+          status=$?
+          set -e
+          cat "${output}"
+          if [ "${status}" -eq 0 ]; then
+            echo "expected policy/tests/insecure_s3_bucket.tf to be rejected"
+            exit 1
+          fi
+          if [ "${status}" -ne 1 ]; then
+            echo "conftest exited ${status}; expected 1 when the insecure fixture has violations"
+            exit 1
+          fi
+          jq -e --argjson rules '["S3-ENCRYPTION:","S3-PUBLIC-ACCESS-BLOCK:","S3-VERSIONING:"]' '
+            [.[].failures[].msg] as $msgs
+            | all($rules[]; . as $rule | any($msgs[]; startswith($rule)))
+          ' "${output}" >/dev/null
+          echo "insecure fixture violated S3-ENCRYPTION, S3-PUBLIC-ACCESS-BLOCK, and S3-VERSIONING"
