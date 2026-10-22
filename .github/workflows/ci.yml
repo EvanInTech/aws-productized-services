@@ -39,3 +39,52 @@ jobs:
 
       - name: Terraform Test
         run: terraform test
+
+  # Terraform in this repo lives under modules/ and examples/.
+  # security-events: write is only for the SARIF upload on this job.
+  iac-security:
+    name: IaC Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan modules and examples for HIGH and CRITICAL misconfigurations
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          scanners: misconfig
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          format: table
+          skip-dirs: .git,docs,products,.github
+          cache: "false"
+          version: v0.70.0
+
+      - name: Write SARIF report
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          scanners: misconfig
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+          format: sarif
+          output: trivy-results.sarif
+          limit-severities-for-sarif: true
+          skip-dirs: .git,docs,products,.github
+          cache: "false"
+          version: v0.70.0
+
+      - name: Upload SARIF to GitHub Security
+        if: always() && hashFiles('trivy-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-iac

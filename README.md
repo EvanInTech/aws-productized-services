@@ -45,6 +45,10 @@ We use a layered approach:
 
 Every module should ship with tests from day one.
 
+## Security gates
+
+CI scans the Terraform under `modules/` and `examples/` with [Trivy](https://github.com/aquasecurity/trivy) config mode. The job fails on HIGH or CRITICAL misconfigurations and uploads a SARIF report to the GitHub Security tab. Suppress a finding only with a resource-scoped `#trivy:ignore:<id>` comment and a one-line justification immediately above it.
+
 ## Getting Started
 
 ```bash

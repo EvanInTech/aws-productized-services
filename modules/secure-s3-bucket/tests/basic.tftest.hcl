@@ -1,5 +1,8 @@
 # Basic configuration tests for the secure-s3-bucket module.
 # These use command = plan so they run quickly without creating real resources.
+# The mock provider keeps that plan local: no AWS credentials, account, or network calls.
+
+mock_provider "aws" {}
 
 variables {
   bucket_name = "test-secure-bucket-example-12345"

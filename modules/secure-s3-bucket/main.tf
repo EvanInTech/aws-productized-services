@@ -4,9 +4,9 @@ resource "aws_s3_bucket" "this" {
 
   tags = merge(
     {
-      Name        = var.bucket_name
-      ManagedBy   = "terraform"
-      Module      = "secure-s3-bucket"
+      Name      = var.bucket_name
+      ManagedBy = "terraform"
+      Module    = "secure-s3-bucket"
     },
     var.tags
   )
@@ -31,6 +31,8 @@ resource "aws_s3_bucket_versioning" "this" {
   }
 }
 
+# SSE-S3 (AES256) is the intentional default; a customer-managed key is a caller cost and key-policy decision, and SSE-KMS cannot be used for S3 server-access log buckets.
+#trivy:ignore:AVD-AWS-0132
 resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
   count = var.enable_encryption ? 1 : 0
 
