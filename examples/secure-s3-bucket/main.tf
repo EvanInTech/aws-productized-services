@@ -1,5 +1,6 @@
 terraform {
-  required_version = ">= 1.6.0"
+  # Same floor as modules/secure-s3-bucket. Its tests use mock_provider (Terraform 1.7+).
+  required_version = ">= 1.7.0"
 
   required_providers {
     aws = {

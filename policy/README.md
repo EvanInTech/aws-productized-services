@@ -1,6 +1,6 @@
 # Policy as code
 
-Conftest evaluates the Rego policies in [`policy/terraform`](terraform) against Terraform HCL. The `Policy as Code` CI job fails when a `.tf` file under `modules/` or `examples/` violates a rule. Conftest only parses HCL: the job uses no AWS credentials, secrets, or OIDC.
+Conftest evaluates the Rego policies in [`policy/terraform`](terraform) against Terraform HCL. The `Policy as Code` CI job fails when a `.tf` file under `modules/`, `examples/`, or `products/` violates a rule. `products/` has no `.tf` files today. Conftest only parses HCL: the job uses no AWS credentials, secrets, or OIDC.
 
 CI pins [Conftest 0.71.1](https://github.com/open-policy-agent/conftest/releases/tag/v0.71.1) and the `hcl2` parser. Each `.tf` file is evaluated on its own, so a bucket and the resources that protect it must be declared in the same file. A control counts only when its `bucket` argument references `aws_s3_bucket.<name>.id` or `aws_s3_bucket.<name>.bucket`.
 
@@ -40,7 +40,7 @@ curl -fsSL -o "$archive" "https://github.com/open-policy-agent/conftest/releases
 # linux/amd64 sha256: c3f6b2a753bd56e377a1e51a95ae3e057f926f2e9139f7d5b5dfbbaf810f7985
 tar -xzf "$archive" conftest
 
-find modules examples -type f -name '*.tf' -print0 \
+find modules examples products -type f -name '*.tf' -print0 \
   | sort -z \
   | xargs -0 ./conftest test --parser hcl2 --no-color --policy policy/terraform
 
