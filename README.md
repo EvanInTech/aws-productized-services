@@ -50,6 +50,9 @@ Every module should ship with tests from day one.
 CI scans the Terraform under `modules/` and `examples/` with [Trivy](https://github.com/aquasecurity/trivy) config mode. The job fails on HIGH or CRITICAL misconfigurations and uploads a SARIF report to the GitHub Security tab. Suppress a finding only with a resource-scoped `#trivy:ignore:<id>` comment and a one-line justification immediately above it.
 CI also evaluates the Rego policies in [`policy/terraform`](policy/terraform) with [Conftest](https://www.conftest.dev/) (HCL2 parser) and fails on violations; see [policy/README.md](policy/README.md).
 
+Every action under [`.github/workflows`](.github/workflows) is pinned to a full commit SHA, with the release tag in a trailing comment. [Dependabot](.github/dependabot.yml) opens weekly pull requests for the `github-actions` ecosystem and for the Terraform providers in `modules/secure-s3-bucket` and `examples/secure-s3-bucket`.
+Each CI run generates a source SBOM with [Syft](https://github.com/anchore/syft) (`anchore/sbom-action`, Syft v1.54.0) and uploads `sbom.spdx.json` as a workflow artifact. The job has `contents: read` only: it checks out the repo and uploads the artifact, and it does not use AWS credentials, secrets, or OIDC.
+
 ## Getting Started
 
 ```bash
